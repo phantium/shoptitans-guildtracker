@@ -59,7 +59,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.PAT_TOKEN }}
         files: |
           release/cpu/Shop Titans Guild Tracker CPU Setup *.exe
           release/cpu/Shop Titans Guild Tracker CPU-*-portable.exe
