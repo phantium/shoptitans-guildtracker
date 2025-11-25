@@ -34,11 +34,13 @@ jobs:
       run: npx electron-builder --config electron-builder-cpu.json
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build GPU version
       run: npx electron-builder --config electron-builder-gpu.json
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload CPU Installer
       uses: actions/upload-artifact@v4
