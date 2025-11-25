@@ -198,10 +198,6 @@ The app uses SQLite with three main tables:
 - The database can be deleted at any time
 - Exports are saved locally to the `exports/` directory
 
-## License
-
-MIT License - Feel free to use and modify for your guild!
-
 ## Contributing
 
 This is an open-source project. Feel free to submit issues or pull requests for improvements!
