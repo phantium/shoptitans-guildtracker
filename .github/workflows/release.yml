@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'  # Triggers on tags like v1.0.0, v1.1.0, etc.
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -31,16 +34,14 @@ jobs:
       run: npm run build
 
     - name: Build CPU version
-      run: npx electron-builder --config electron-builder-cpu.json
+      run: npx electron-builder --config electron-builder-cpu.json --publish never
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build GPU version
-      run: npx electron-builder --config electron-builder-gpu.json
+      run: npx electron-builder --config electron-builder-gpu.json --publish never
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload CPU Installer
       uses: actions/upload-artifact@v4
