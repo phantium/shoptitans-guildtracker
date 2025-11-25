@@ -1,0 +1,87 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on tags like v1.0.0, v1.1.0, etc.
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Node dependencies
+      run: npm ci
+
+    - name: Build React frontend
+      run: npm run build
+
+    - name: Build CPU version
+      run: npx electron-builder --config electron-builder-cpu.json
+      env:
+        CSC_IDENTITY_AUTO_DISCOVERY: false
+
+    - name: Build GPU version
+      run: npx electron-builder --config electron-builder-gpu.json
+      env:
+        CSC_IDENTITY_AUTO_DISCOVERY: false
+
+    - name: Upload CPU Installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: cpu-installer
+        path: release/cpu/*.exe
+
+    - name: Upload GPU Installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: gpu-installer
+        path: release/gpu/*.exe
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          release/cpu/Shop Titans Guild Tracker CPU Setup *.exe
+          release/cpu/Shop Titans Guild Tracker CPU-*-portable.exe
+          release/gpu/Shop Titans Guild Tracker GPU Setup *.exe
+          release/gpu/Shop Titans Guild Tracker GPU-*-portable.exe
+        body: |
+          ## 🎮 Shop Titans Guild Tracker ${{ github.ref_name }}
+
+          ### 📦 Downloads
+
+          #### 🖥️ CPU Version (Recommended for most users)
+          - Works on any Windows PC
+          - After installation, run `setup-venv.bat` to set up OCR
+
+          #### ⚡ GPU Version (NVIDIA GPU owners)
+          - 3-4x faster OCR processing
+          - Requires NVIDIA GPU + CUDA drivers
+          - After installation: Run `setup-venv.bat`, then `setup-gpu.bat`
+
+          ### 📋 System Requirements
+          - Windows 10/11
+          - Python 3.8 or higher
+
+          See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

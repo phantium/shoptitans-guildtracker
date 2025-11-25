@@ -1,0 +1,5 @@
+# Use specific compatible versions to avoid API issues
+paddleocr==3.3.1
+paddlepaddle==3.2.2
+numpy  # Required for PaddlePaddle
+

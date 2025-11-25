@@ -1,0 +1,36 @@
+node_modules/
+dist/
+release/
+build-output/
+data/*.db
+data/*.db-*
+exports/
+.DS_Store
+*.log
+debug-ocr-captures.txt
+debug-ocr-input.txt
+
+# Build outputs
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.zip
+
+# Capture and debug files
+capture-debug-*.png
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+ocr-temp-*.png
+pip-log.txt
+pip-delete-this-directory.txt
+
