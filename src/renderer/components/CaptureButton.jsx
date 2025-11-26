@@ -1,7 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import captureQueue from '../../utils/captureQueue.js';
 
 function CaptureButton({ settings, selectedSource, captureRegion, onStatusChange, onMessageChange, onCaptureComplete }) {
   const [isCapturing, setIsCapturing] = useState(false);
+  const [queueState, setQueueState] = useState(captureQueue.getState());
+
+  useEffect(() => {
+    // Subscribe to queue state changes
+    const unsubscribe = captureQueue.subscribe((state) => {
+      setQueueState(state);
+      
+      // Update status messages based on queue state
+      if (state.currentItem) {
+        const itemStatus = state.currentItem.status;
+        const playerInfo = state.currentItem.result ? 
+          ` for ${state.currentItem.result.name || state.currentItem.result.id}` : '';
+        
+        if (itemStatus === 'processing') {
+          onMessageChange(`Processing snapshot with OCR...${state.queueLength > 0 ? ` (${state.queueLength} in queue)` : ''}`);
+          onStatusChange('processing');
+        } else if (itemStatus === 'completed') {
+          onMessageChange(`✅ Successfully saved stats${playerInfo}${state.queueLength > 0 ? ` (${state.queueLength} remaining)` : ''}`);
+          onStatusChange('success');
+          
+          // Notify parent component
+          if (onCaptureComplete && state.currentItem.result) {
+            onCaptureComplete(state.currentItem.result);
+          }
+        } else if (itemStatus === 'failed') {
+          onMessageChange(`❌ Error: ${state.currentItem.error}${state.queueLength > 0 ? ` (${state.queueLength} in queue)` : ''}`);
+          onStatusChange('error');
+        }
+      } else if (state.queueLength === 0 && !state.isProcessing) {
+        // Queue is empty and nothing is processing
+        if (onStatusChange) {
+          setTimeout(() => onStatusChange('idle'), 2000);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [onStatusChange, onMessageChange, onCaptureComplete]);
 
   const handleCapture = async () => {
     if (!selectedSource) {
@@ -35,21 +74,15 @@ function CaptureButton({ settings, selectedSource, captureRegion, onStatusChange
     }
 
     setIsCapturing(true);
-    onStatusChange('capturing');
     
     // Show window name in status message if available
     const sourceName = selectedSource.name || 'screen';
-    onMessageChange(`Capturing from ${sourceName}...`);
+    onMessageChange(`Capturing screenshot from ${sourceName}...`);
 
     try {
-      // Import modules dynamically
+      // Import screen capture module
       const screenCaptureModule = await import('../../capture/screenCapture.js');
-      const textExtractorModule = await import('../../ocr/textExtractor.js');
-      const statsParserModule = await import('../../ocr/statsParser.js');
-
       const screenCapture = screenCaptureModule.default;
-      const textExtractor = textExtractorModule.default;
-      const statsParser = statsParserModule.default;
 
       // Set capture configuration
       console.log('Setting capture configuration:', { selectedSource, captureRegion });
@@ -61,7 +94,7 @@ function CaptureButton({ settings, selectedSource, captureRegion, onStatusChange
         console.log('No capture region - using full screen');
       }
 
-      // Capture screen
+      // Capture screen (this is fast)
       console.log('Calling screenCapture.captureRegion()...');
       const imageDataUrl = await screenCapture.captureRegion();
       console.log('Capture complete, image data URL length:', imageDataUrl.length);
@@ -74,75 +107,32 @@ function CaptureButton({ settings, selectedSource, captureRegion, onStatusChange
       console.log('To save, run in console: document.querySelector("a[download^=\'capture-debug\']").click()');
       document.body.appendChild(debugLink);
       
-      onMessageChange('Screen captured, processing with OCR...');
-
-      // Extract text using OCR
-      const ocrResult = await textExtractor.extractTextWithPreprocessing(imageDataUrl);
-      console.log('OCR extracted text:', ocrResult.text);
-      console.log('OCR lines:', ocrResult.lines.map(l => l.text));
+      // Add to processing queue
+      const captureId = captureQueue.enqueue({
+        imageDataUrl,
+        metadata: {
+          sourceName,
+          captureRegion,
+          capturedAt: new Date()
+        }
+      });
       
-      // Auto-save OCR results to debug file with capture info - DISABLED
-      // console.log('🔍 Attempting to save OCR debug...');
-      // try {
-      //   const debugInfo = {
-      //     text: ocrResult.text,
-      //     confidence: ocrResult.confidence,
-      //     captureRegion: captureRegion || 'Full screen',
-      //     selectedSource: selectedSource?.name || selectedSource?.id || 'Unknown',
-      //     timestamp: new Date().toISOString()
-      //   };
-      //   const result = await window.electronAPI.saveOCRDebug(debugInfo);
-      //   console.log('✅ OCR text saved to:', result.filepath);
-      // } catch (err) {
-      //   console.error('❌ Failed to save OCR debug:', err);
-      // }
+      console.log(`✅ Snapshot captured and added to queue (ID: ${captureId})`);
+      onMessageChange(`📸 Snapshot captured! ${queueState.queueLength + 1 > 1 ? `Added to queue (position ${queueState.queueLength + 1})` : 'Processing...'}`);
       
-      onMessageChange('OCR complete, parsing statistics...');
-
-      // Parse statistics
-      const stats = statsParser.parseFromOCR(ocrResult);
-      console.log('Parsed stats:', stats);
-
-      // Validate stats
-      if (!statsParser.isValid(stats)) {
-        const missing = [];
-        if (!stats.name && !stats.id) missing.push('player name/ID');
-        if (!stats.guild_name) missing.push('guild name');
-        const keyStats = [stats.net_worth, stats.prestige, stats.invested].filter(v => v).length;
-        if (keyStats < 2) missing.push(`key stats (found ${keyStats}/3, need at least 2)`);
-        
-        onMessageChange(`Incomplete data extracted. Missing: ${missing.join(', ')}. Please ensure the player profile panel is fully visible and try again.`);
-        console.error('Validation failed - missing:', missing);
-        setIsCapturing(false);
-        onStatusChange('idle');
-        return;
-      }
-
-      onMessageChange('Saving player statistics...');
-
-      // Save to database
-      await window.electronAPI.savePlayerStats(stats);
-
-      onMessageChange(`Successfully captured and saved stats for ${stats.name || stats.id}`);
       setIsCapturing(false);
-      onStatusChange('success');
-
-      // Notify parent component
-      if (onCaptureComplete) {
-        onCaptureComplete(stats);
-      }
-
-      // Reset status after a delay
-      setTimeout(() => {
-        onStatusChange('idle');
-      }, 3000);
 
     } catch (error) {
       console.error('Capture error:', error);
-      onMessageChange(`Error: ${error.message}`);
+      onMessageChange(`Error capturing: ${error.message}`);
       setIsCapturing(false);
       onStatusChange('error');
     }
+  };
+
+  const handleClearQueue = () => {
+    captureQueue.clearQueue();
+    onMessageChange('Queue cleared');
   };
 
   return (
@@ -152,13 +142,39 @@ function CaptureButton({ settings, selectedSource, captureRegion, onStatusChange
         onClick={handleCapture}
         disabled={isCapturing}
       >
-        {isCapturing ? 'Capturing...' : 'Capture Player Stats'}
+        {isCapturing ? 'Capturing Screenshot...' : 'Capture Player Stats'}
       </button>
       
       {selectedSource && (
         <div className="capture-info">
           <p>✓ Capture source: {selectedSource.name || selectedSource.id || 'Unknown'}</p>
           {captureRegion && <p>✓ Custom region configured</p>}
+        </div>
+      )}
+      
+      {(queueState.isProcessing || queueState.queueLength > 0) && (
+        <div className="queue-status">
+          <div className="queue-info">
+            {queueState.currentItem && (
+              <div className="processing-status">
+                <span className="processing-indicator">⚙️</span>
+                <span>Processing snapshot...</span>
+              </div>
+            )}
+            {queueState.queueLength > 0 && (
+              <div className="queue-length">
+                <span className="queue-badge">{queueState.queueLength}</span>
+                <span>in queue</span>
+                <button 
+                  className="btn btn-small btn-secondary"
+                  onClick={handleClearQueue}
+                  title="Clear queue"
+                >
+                  Clear Queue
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

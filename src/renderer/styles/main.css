@@ -903,3 +903,64 @@ body {
   text-shadow: 2px 2px 4px rgba(245, 185, 66, 0.6);
 }
 
+/* Queue Status */
+.queue-status {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #3D1F2E 0%, #4A2533 100%);
+  border-radius: 8px;
+  border: 2px solid #5C2F3E;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.queue-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.processing-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #F5B942;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.processing-indicator {
+  animation: spin 2s linear infinite;
+  font-size: 1.2rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.queue-length {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #E8D5C4;
+  font-size: 0.9rem;
+}
+
+.queue-badge {
+  background: linear-gradient(180deg, #FDD675 0%, #F5B942 50%, #D89F2E 100%);
+  color: #2B1520;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 2px solid #D89F2E;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  min-width: 2rem;
+  text-align: center;
+}
+

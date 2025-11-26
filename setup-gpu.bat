@@ -48,7 +48,7 @@ echo This may take a few minutes...
 echo.
 
 REM Install CUDA 11.x version (most compatible)
-pip install paddlepaddle-gpu -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install paddlepaddle-gpu==3.2.2 -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
 
 if errorlevel 1 (
     echo.
